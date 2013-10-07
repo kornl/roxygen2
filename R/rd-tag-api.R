@@ -99,8 +99,41 @@ format.references_tag <- format_collapse
 format.seealso_tag <- format_collapse
 format.source_tag <- format_collapse
 format.usage_tag <- function(x, ...) format_collapse(x, ..., exdent = 4)
-format.value_tag <- format_collapse
+#format.value_tag <- format_collapse
 
+get_items <- function(x, check = FALSE) {
+   names <- names(x$values)
+   if (check) {
+     # check for duplicated and throw warning if there are any
+     dups <- duplicated(names)
+     if (any(dups)) {
+       warning("Duplicated parameters: ", str_c(names[dups], collapse = ","), 
+         call. = FALSE)
+     }
+   }
+   str_c("\\item{", names, "}{", x$values, "}", collapse = "\n\n")
+}
+
+format.value_tag <- function(x, ...) {
+  # general description of return value
+  names <- names(x$values)
+  if(is.null(names)) {
+    # no itemization
+    str <- x$values
+  } else {
+    # extract general description first
+    general <- names == ""
+    str <- x$values[general]
+    # additional list components
+    x$values <- x$values[!general]
+    if (length(x$values) > 0) {
+      items <- get_items(x, check = TRUE)
+      str <- str_c(c(str, items), collapse = "\n\n")
+    }
+  }
+  # return tag
+  rd_tag(x$tag, str_wrap(str, width = 60, exdent = 2, indent = 2), space = TRUE)
+}
 
 # Tags that don't have output ------------------------------------------------
 

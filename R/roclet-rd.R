@@ -16,6 +16,7 @@ register.preref.parsers(parse.value,
                         'examples',
                         'keywords',
                         'return',
+                        'returnClass',
                         'author',
                         'section',
                         'family',
@@ -28,13 +29,15 @@ register.preref.parsers(parse.value,
 
 register.preref.parsers(parse.name.description,
                         'param',
-                        'method')
+                        'method',
+                        'returnItem')
 
 register.preref.parsers(parse.name,
                         'docType')
 
 register.preref.parsers(parse.default,
-                        'noRd')
+                        'noRd',
+                        'returnList')
 
 
 register.srcref.parsers(function(call, env) {
@@ -364,9 +367,10 @@ roclet_rd_one <- function(partitum, base_path) {
   add_tag(rd, process_had_tag(partitum, 'seealso'))
   add_tag(rd, process_had_tag(partitum, "references"))
   add_tag(rd, process_had_tag(partitum, 'concept'))
-  add_tag(rd, process_had_tag(partitum, 'return', function(tag, param) {
-      new_tag("value", param)
-    }))
+# add_tag(rd, process_had_tag(partitum, 'return', function(tag, param) {
+#     new_tag("value", param)
+#   }))
+  add_tag(rd, process.return(partitum))
   add_tag(rd, process_had_tag(partitum, 'keywords', function(tag, param, all, rd) {
       new_tag("keyword", str_split(str_trim(param), "\\s+")[[1]])
     }))
@@ -375,6 +379,36 @@ roclet_rd_one <- function(partitum, base_path) {
 
   list(rd = rd, filename = filename)
 }
+
+process.return <- function(partitum) {
+  # general description of return value
+  ret <- unlist(partitum[names(partitum) == "return"], use.names=FALSE)
+  # list or class of return value, and additional list components
+  retList <- unlist(partitum[names(partitum) == "returnList"], use.names=FALSE)
+  retClass <- unlist(partitum[names(partitum) == "returnClass"], use.names=FALSE)
+  retItems <- partitum[names(partitum) == "returnItem"]
+  if (length(ret) == 0) {
+    # general description overrides 'returnList' or 'returnClass'
+    if (length(retList) > 0) {
+      ret <- "A list"
+    } else if (length(retClass) > 0) {
+      ret <- paste("An object of class \\code{\"", retClass, "\"}", sep="")
+    }
+    if (length(ret) > 0) {
+      ret <- paste(ret, if (length(retItems) > 0) " with the following components:" else ".", sep="")
+    }
+  }
+  if (length(retItems) > 0) {
+    # add list components
+    desc <- str_trim(sapply(retItems, "[[", "description"))
+    names(desc) <- sapply(retItems, "[[", "name")
+    ret <- c(ret, desc)
+  }
+  # return nothing if there were no matches for keywords, otherwise value tag
+  if (length(ret) == 0) return()
+  new_tag("value", ret)
+}
+
 
 #' @S3method roc_output had
 #' @importFrom tools checkRd
